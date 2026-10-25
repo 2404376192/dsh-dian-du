@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v15';
+    const VERSION = 'v16';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
 
     const store = {
       marks: loadMarks(),
+      asked: loadAsked(),
       question: '',
       busy: false,
       status: '',
@@ -77,14 +78,16 @@ window.__ModuleLoader__.load({
       Object.assign(store, patch);
       try {
         if ('marks' in patch) saveMarks();
+        if ('asked' in patch) saveAsked();
         if ('sideSessionId' in patch) saveSideSession();
       } catch {
         /* storage is optional */
       }
       notify();
-      if ('marks' in patch) {
+      if ('marks' in patch || 'asked' in patch) {
         try {
           paintCodeHighlights();
+          if ('asked' in patch) reapplyMarks();
         } catch {
           /* painting is best effort */
         }
@@ -102,6 +105,29 @@ window.__ModuleLoader__.load({
     }
     function saveMarks() {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ marks: store.marks }));
+    }
+    function loadAsked() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY + '.asked');
+        const parsed = raw ? JSON.parse(raw) : null;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    function saveAsked() {
+      window.localStorage.setItem(STORAGE_KEY + '.asked', JSON.stringify(store.asked));
+    }
+    function rememberAsked() {
+      const known = new Set(store.asked.map((entry) => entry.id));
+      const added = store.marks
+        .filter((mark) => !known.has(mark.id))
+        .map((mark) => ({ id: mark.id, text: mark.text, label: mark.label || '', at: Date.now() }));
+      if (added.length === 0) return;
+      update({ asked: store.asked.concat(added) });
+    }
+    function forgetAsked() {
+      update({ asked: [] });
     }
     function loadSideSession() {
       try {
@@ -202,7 +228,7 @@ window.__ModuleLoader__.load({
       if (selection && !selection.isCollapsed) selection.removeAllRanges();
     }
 
-    /** Paint exactly the selected lines of each code block, and nothing else. */
+    /** Paint exactly the selected lines (blue) and previously asked lines (amber). */
     function paintCodeHighlights() {
       for (const pre of document.querySelectorAll('[data-chat-group-part="response"] pre')) {
         const row = pre.closest('[data-chat-group-part="response"]');
@@ -210,12 +236,14 @@ window.__ModuleLoader__.load({
         const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
         const preIndex = Math.max(0, preIndexIn(row, pre));
         const prefix = nodeKey + '#P' + preIndex + 'L';
-        const lines = store.marks
-          .filter((mark) => mark.id.startsWith(prefix))
-          .map((mark) => Number(mark.id.slice(prefix.length)))
-          .filter((line) => Number.isFinite(line) && line > 0)
-          .sort((a, b) => a - b);
-        if (lines.length === 0) {
+        const linesOf = (list) =>
+          list
+            .filter((entry) => entry.id.startsWith(prefix))
+            .map((entry) => Number(entry.id.slice(prefix.length)))
+            .filter((line) => Number.isFinite(line) && line > 0);
+        const selected = new Set(linesOf(store.marks));
+        const asked = new Set(linesOf(store.asked));
+        if (selected.size === 0 && asked.size === 0) {
           pre.style.backgroundImage = '';
           continue;
         }
@@ -224,14 +252,24 @@ window.__ModuleLoader__.load({
         const paddingTop = parseFloat(style.paddingTop) || 0;
         if (!Number.isFinite(lineHeight) || lineHeight <= 0) continue;
         const stops = [];
-        for (const line of lines) {
+        const all = [...new Set([...selected, ...asked])].sort((a, b) => a - b);
+        for (const line of all) {
           const top = paddingTop + (line - 1) * lineHeight;
-          stops.push(
-            'transparent ' + top + 'px',
-            'rgba(36,123,191,.20) ' + top + 'px',
-            'rgba(36,123,191,.20) ' + (top + lineHeight) + 'px',
-            'transparent ' + (top + lineHeight) + 'px',
-          );
+          if (selected.has(line)) {
+            stops.push(
+              'transparent ' + top + 'px',
+              'rgba(36,123,191,.20) ' + top + 'px',
+              'rgba(36,123,191,.20) ' + (top + lineHeight) + 'px',
+              'transparent ' + (top + lineHeight) + 'px',
+            );
+          } else {
+            stops.push(
+              'transparent ' + (top + lineHeight - 2) + 'px',
+              'rgba(209,154,58,.75) ' + (top + lineHeight - 2) + 'px',
+              'rgba(209,154,58,.75) ' + (top + lineHeight) + 'px',
+              'transparent ' + (top + lineHeight) + 'px',
+            );
+          }
         }
         pre.style.backgroundImage = 'linear-gradient(' + stops.join(',') + ')';
         pre.style.backgroundRepeat = 'no-repeat';
@@ -239,12 +277,15 @@ window.__ModuleLoader__.load({
     }
 
     function reapplyMarks() {
-      if (store.marks.length === 0) return;
+      const asked = new Set(store.asked.map((entry) => entry.id));
+      if (store.marks.length === 0 && asked.size === 0) return;
       const wanted = new Set(store.marks.map((mark) => mark.id));
       for (const row of document.querySelectorAll('[data-chat-group-part="response"]')) {
         const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
         [...row.querySelectorAll(INNER_SELECTOR)].forEach((block, index) => {
-          if (wanted.has(nodeKey + '#' + (index + 1))) block.setAttribute('data-dd-marked', '');
+          const id = nodeKey + '#' + (index + 1);
+          if (wanted.has(id)) block.setAttribute('data-dd-marked', '');
+          if (asked.has(id)) block.setAttribute('data-dd-asked', '');
         });
       }
       paintCodeHighlights();
@@ -343,6 +384,7 @@ window.__ModuleLoader__.load({
           thread: store.thread.concat({ q: question || '解释选中的内容', a: value.result.text, at: Date.now() }),
           question: '',
         });
+        rememberAsked();
       } catch (error) {
         update({ busy: false, status: '', error: (error && error.message) || String(error) });
       }
@@ -365,12 +407,17 @@ window.__ModuleLoader__.load({
   background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 14%, transparent);
   box-shadow: inset 3px 0 0 var(--dsw-alias-brand-primary, #247bbf);
 }
+[data-chat-group-part="response"] [data-dd-asked]:not([data-dd-marked]) {
+  box-shadow: inset 3px 0 0 rgba(209,154,58,.85);
+}
 
 .dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 400px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
 .dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
 .dd-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); }
 .dd-title { font-weight: 600; font-size: 15px; }
 .dd-count { font-size: 12px; color: var(--dsw-alias-label-tertiary, #8a8f98); }
+.dd-asked-clear { margin-left: auto; border: 0; background: transparent; color: rgba(209,154,58,.95); cursor: pointer; font: inherit; font-size: 11px; padding: 0 4px; }
+.dd-asked-tag { font-size: 10px; line-height: 16px; color: rgba(209,154,58,.95); border: 1px solid rgba(209,154,58,.45); border-radius: 999px; padding: 0 5px; white-space: nowrap; }
 .dd-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 16px; padding: 0 4px; }
 .dd-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
 .dd-section { margin-top: 2px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary, #8a8f98); text-transform: none; }
@@ -424,6 +471,17 @@ window.__ModuleLoader__.load({
           { className: 'dd-head' },
           h('span', { className: 'dd-title' }, '点读'),
           h('span', { className: 'dd-count' }, store.marks.length ? store.marks.length + ' 处已选' : '未选择'),
+          store.asked.length
+            ? h(
+                'button',
+                {
+                  className: 'dd-asked-clear',
+                  title: '清除所有「查过」痕迹',
+                  onClick: forgetAsked,
+                },
+                '查过 ' + store.asked.length + ' 处',
+              )
+            : null,
           inline ? null : h('button', { className: 'dd-close', title: '收起', onClick: () => update({ open: false }) }, '×'),
         ),
         h(
@@ -438,6 +496,9 @@ window.__ModuleLoader__.load({
                   { className: 'dd-mark', key: mark.id },
                   mark.label ? h('span', { className: 'dd-label' }, mark.label) : null,
                   h('span', { className: 'dd-text' }, mark.text),
+                  store.asked.some((entry) => entry.id === mark.id)
+                    ? h('span', { className: 'dd-asked-tag' }, '查过')
+                    : null,
                   h(
                     'button',
                     { className: 'dd-x', onClick: () => update({ marks: store.marks.filter((m) => m.id !== mark.id) }) },

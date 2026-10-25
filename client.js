@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v14';
+    const VERSION = 'v15';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -366,27 +366,28 @@ window.__ModuleLoader__.load({
   box-shadow: inset 3px 0 0 var(--dsw-alias-brand-primary, #247bbf);
 }
 
-.dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 380px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 13px; }
-.dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 13px; }
-.dd-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.2)); }
-.dd-title { font-weight: 600; font-size: 13px; }
-.dd-count { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8a8f98); }
-.dd-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 15px; padding: 0 4px; }
-.dd-scroll { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 9px; }
-.dd-mark { border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); border-radius: 8px; padding: 6px 8px; display: flex; gap: 7px; align-items: flex-start; }
-.dd-label { font-size: 10px; color: var(--dsw-alias-label-tertiary, #8a8f98); white-space: nowrap; padding-top: 2px; }
-.dd-text { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.5; }
-.dd-x { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 13px; padding: 0 3px; }
-.dd-qa { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.2)); padding-top: 8px; }
-.dd-q { font-weight: 600; font-size: 11px; color: var(--dsw-alias-label-secondary, inherit); }
-.dd-a { white-space: pre-wrap; line-height: 1.65; }
-.dd-hint { color: var(--dsw-alias-label-tertiary, #8a8f98); font-size: 11px; line-height: 1.55; }
-.dd-error { font-size: 11px; color: var(--dsw-alias-danger, #e5484d); line-height: 1.5; }
-.dd-loading { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8a8f98); }
-.dd-compose { border-top: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.2)); padding: 9px 12px 11px; display: flex; flex-direction: column; gap: 7px; }
-.dd-area { width: 100%; min-height: 54px; max-height: 140px; resize: none; box-sizing: border-box; border-radius: 8px; padding: 7px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.25)); background: transparent; color: inherit; font: inherit; }
-.dd-row { display: flex; gap: 7px; align-items: center; }
-.dd-btn { border-radius: 8px; padding: 5px 11px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.25)); background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 12px; }
+.dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 400px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
+.dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
+.dd-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); }
+.dd-title { font-weight: 600; font-size: 15px; }
+.dd-count { font-size: 12px; color: var(--dsw-alias-label-tertiary, #8a8f98); }
+.dd-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 16px; padding: 0 4px; }
+.dd-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.dd-section { margin-top: 2px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary, #8a8f98); text-transform: none; }
+.dd-mark { border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.26)); border-radius: 8px; padding: 8px 10px; display: flex; gap: 8px; align-items: flex-start; background: color-mix(in srgb, var(--dsw-alias-label-tertiary, #9aa0a6) 5%, transparent); }
+.dd-label { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8a8f98); white-space: nowrap; padding-top: 3px; }
+.dd-text { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.6; font-size: 13px; }
+.dd-x { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 14px; padding: 0 3px; }
+.dd-qa { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); border-radius: 10px; padding: 10px 12px; background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 4%, transparent); }
+.dd-q { font-weight: 600; font-size: 13px; color: var(--dsw-alias-label-secondary, inherit); }
+.dd-a { white-space: pre-wrap; line-height: 1.8; font-size: 14px; }
+.dd-hint { color: var(--dsw-alias-label-tertiary, #8a8f98); font-size: 12px; line-height: 1.6; }
+.dd-error { font-size: 12px; color: var(--dsw-alias-danger, #e5484d); line-height: 1.55; }
+.dd-loading { font-size: 12px; color: var(--dsw-alias-label-tertiary, #8a8f98); }
+.dd-compose { border-top: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.dd-area { width: 100%; min-height: 64px; max-height: 160px; resize: none; box-sizing: border-box; border-radius: 8px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.25)); background: transparent; color: inherit; font: inherit; font-size: 14px; line-height: 1.6; }
+.dd-row { display: flex; gap: 8px; align-items: center; }
+.dd-btn { border-radius: 8px; padding: 6px 14px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.25)); background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
 .dd-btn.primary { background: var(--dsw-alias-brand-primary, #247bbf); border-color: transparent; color: #fff; }
 .dd-btn:disabled { opacity: .5; cursor: default; }
 .dd-debug { font-size: 10px; color: var(--dsw-alias-label-tertiary, #8a8f98); font-family: ui-monospace, Consolas, monospace; }
@@ -428,6 +429,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'dd-scroll' },
+          h('div', { className: 'dd-section' }, '已选内容'),
           store.marks.length === 0
             ? h('div', { className: 'dd-hint' }, '在左边点一下想弄懂的句子或代码行。')
             : store.marks.map((mark) =>
@@ -443,11 +445,15 @@ window.__ModuleLoader__.load({
                   ),
                 ),
               ),
+          h('div', { className: 'dd-section' }, '我的提问'),
+          store.thread.length === 0
+            ? h('div', { className: 'dd-hint' }, '选好内容后，在下面的框里说你的诉求，回车发送。')
+            : null,
           store.thread.map((entry) =>
             h(
               'div',
               { className: 'dd-qa', key: entry.at },
-              h('div', { className: 'dd-q' }, '问：' + entry.q),
+              h('div', { className: 'dd-q' }, entry.q),
               h('div', { className: 'dd-a' }, entry.a),
             ),
           ),
@@ -581,19 +587,24 @@ window.__ModuleLoader__.load({
         }
 
         try {
+          // No document-wide MutationObserver: streaming answers mutate the DOM
+          // hundreds of times per second, and rescanning on every batch froze the
+          // renderer. Repaint lazily on scroll/focus instead.
           let timer = 0;
-          const observer = new MutationObserver(() => {
+          const schedule = () => {
             if (store.marks.length === 0) return;
             window.clearTimeout(timer);
-            timer = window.setTimeout(reapplyMarks, 200);
-          });
-          observer.observe(document.body, { childList: true, subtree: true });
+            timer = window.setTimeout(reapplyMarks, 250);
+          };
+          document.addEventListener('scroll', schedule, true);
+          window.addEventListener('focus', schedule);
           ctx.effect(() => () => {
             window.clearTimeout(timer);
-            observer.disconnect();
+            document.removeEventListener('scroll', schedule, true);
+            window.removeEventListener('focus', schedule);
           });
         } catch (error) {
-          console.error('[dian-du] observer', error);
+          console.error('[dian-du] repaint hooks', error);
         }
 
         try {

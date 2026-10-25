@@ -30,15 +30,23 @@ function failureText(error) {
 }
 
 export function apply(ctx, config) {
-  const provider = (config && config.provider) || 'deepseek-official';
-  const model = (config && config.model) || 'deepseek-flash';
+  const fallbackProvider = (config && config.provider) || 'deepseek-official';
+  const fallbackModel = (config && config.model) || 'deepseek-flash';
+  const fallbackEffort = (config && config.reasoningEffort) || 'high';
 
   ctx.effect(() =>
     ctx.commands.register({
       name: 'dian-du',
       description: 'Explain the passages marked in the reading pen panel',
       input: { hint: '{"items":[{"text":"…"}],"question":"…"}' },
-      handler: async ({ rawInput }) => {
+      handler: async ({ rawInput, agent }) => {
+        // Match the model the conversation itself is using, so the side answer
+        // is not a weaker default: provider/model/reasoning effort all follow
+        // the selected Agent when it exposes them.
+        const selected = (agent && (agent.modelSelection || agent.model)) || null;
+        const provider = (selected && selected.provider) || fallbackProvider;
+        const model = (selected && selected.model) || fallbackModel;
+        const reasoningEffort = (selected && selected.reasoningEffort) || fallbackEffort;
         let payload;
         try {
           payload = JSON.parse(rawInput);
@@ -71,6 +79,7 @@ export function apply(ctx, config) {
           for await (const chunk of ctx.llm.stream({
             provider,
             model,
+            ...(reasoningEffort ? { reasoningEffort } : {}),
             messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
           })) {
             if (chunk && chunk.type === 'text-delta') answer += textOf(chunk.text);
@@ -83,7 +92,8 @@ export function apply(ctx, config) {
         if (!trimmed) {
           return {
             kind: 'error',
-            text: '模型没有返回内容（provider: ' + provider + ', model: ' + model + '）',
+            text:
+              '模型没有返回内容（provider: ' + provider + ', model: ' + model + ', effort: ' + reasoningEffort + '）',
           };
         }
         return { kind: 'success', text: trimmed };

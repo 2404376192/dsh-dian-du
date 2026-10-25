@@ -4,3 +4,4 @@
       config:
         provider: deepseek-official
         model: deepseek-flash
+        reasoningEffort: high

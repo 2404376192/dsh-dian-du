@@ -59,6 +59,8 @@ globalThis.window = {
   setTimeout: (fn, ms) => setTimeout(fn, ms),
   clearTimeout: (id) => clearTimeout(id),
   getSelection: () => ({ isCollapsed: true, removeAllRanges() {} }),
+  addEventListener: () => {},
+  removeEventListener: () => {},
   getComputedStyle: () => ({ lineHeight: '18px', paddingTop: '0px', paddingLeft: '0px' }),
   __ModuleLoader__: { load: (definition) => (globalThis.__plugin = definition) },
 }

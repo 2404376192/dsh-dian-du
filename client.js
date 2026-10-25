@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v13';
+    const VERSION = 'v14';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -82,6 +82,13 @@ window.__ModuleLoader__.load({
         /* storage is optional */
       }
       notify();
+      if ('marks' in patch) {
+        try {
+          paintCodeHighlights();
+        } catch {
+          /* painting is best effort */
+        }
+      }
     }
 
     function loadMarks() {
@@ -162,20 +169,23 @@ window.__ModuleLoader__.load({
       return { line, text: (text.split('\n')[line - 1] || '').trim() };
     }
 
+    function preIndexIn(row, pre) {
+      return [...row.querySelectorAll('pre')].indexOf(pre);
+    }
+
     function toggleCodeLine(host, x, y) {
       const block = host.closest('pre, code') || host;
       const row = block.closest('[data-chat-group-part="response"]');
       if (!row) return;
+      const pre = block.closest('pre') || block;
       const found = codeLineAt(block, x, y);
       if (!found.line || !found.text) return;
       const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
-      const id = nodeKey + '#L' + found.line;
+      const preIndex = Math.max(0, preIndexIn(row, pre));
+      const id = nodeKey + '#P' + preIndex + 'L' + found.line;
       if (store.marks.some((m) => m.id === id)) {
-        const marks = store.marks.filter((m) => m.id !== id);
-        if (!marks.some((m) => m.id.startsWith(nodeKey + '#L'))) block.removeAttribute('data-dd-code');
-        update({ marks, debug: '取消代码第 ' + found.line + ' 行' });
+        update({ marks: store.marks.filter((m) => m.id !== id), debug: '取消代码第 ' + found.line + ' 行' });
       } else {
-        block.setAttribute('data-dd-code', '');
         update({
           marks: store.marks.concat({
             id,
@@ -187,8 +197,45 @@ window.__ModuleLoader__.load({
         });
         openPanel();
       }
+      paintCodeHighlights();
       const selection = window.getSelection();
       if (selection && !selection.isCollapsed) selection.removeAllRanges();
+    }
+
+    /** Paint exactly the selected lines of each code block, and nothing else. */
+    function paintCodeHighlights() {
+      for (const pre of document.querySelectorAll('[data-chat-group-part="response"] pre')) {
+        const row = pre.closest('[data-chat-group-part="response"]');
+        if (!row) continue;
+        const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
+        const preIndex = Math.max(0, preIndexIn(row, pre));
+        const prefix = nodeKey + '#P' + preIndex + 'L';
+        const lines = store.marks
+          .filter((mark) => mark.id.startsWith(prefix))
+          .map((mark) => Number(mark.id.slice(prefix.length)))
+          .filter((line) => Number.isFinite(line) && line > 0)
+          .sort((a, b) => a - b);
+        if (lines.length === 0) {
+          pre.style.backgroundImage = '';
+          continue;
+        }
+        const style = window.getComputedStyle(pre);
+        const lineHeight = parseFloat(style.lineHeight);
+        const paddingTop = parseFloat(style.paddingTop) || 0;
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) continue;
+        const stops = [];
+        for (const line of lines) {
+          const top = paddingTop + (line - 1) * lineHeight;
+          stops.push(
+            'transparent ' + top + 'px',
+            'rgba(36,123,191,.20) ' + top + 'px',
+            'rgba(36,123,191,.20) ' + (top + lineHeight) + 'px',
+            'transparent ' + (top + lineHeight) + 'px',
+          );
+        }
+        pre.style.backgroundImage = 'linear-gradient(' + stops.join(',') + ')';
+        pre.style.backgroundRepeat = 'no-repeat';
+      }
     }
 
     function reapplyMarks() {
@@ -199,16 +246,17 @@ window.__ModuleLoader__.load({
         [...row.querySelectorAll(INNER_SELECTOR)].forEach((block, index) => {
           if (wanted.has(nodeKey + '#' + (index + 1))) block.setAttribute('data-dd-marked', '');
         });
-        for (const pre of row.querySelectorAll('pre')) {
-          if ([...wanted].some((id) => id.startsWith(nodeKey + '#L'))) pre.setAttribute('data-dd-code', '');
-        }
       }
+      paintCodeHighlights();
     }
 
     function clearMarks() {
       for (const element of document.querySelectorAll('[data-dd-marked], [data-dd-code]')) {
         element.removeAttribute('data-dd-marked');
         element.removeAttribute('data-dd-code');
+      }
+      for (const pre of document.querySelectorAll('[data-chat-group-part="response"] pre')) {
+        if (pre.style) pre.style.backgroundImage = '';
       }
       update({ marks: [], thread: [], error: '', status: '已清除选择' });
     }
@@ -317,9 +365,7 @@ window.__ModuleLoader__.load({
   background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 14%, transparent);
   box-shadow: inset 3px 0 0 var(--dsw-alias-brand-primary, #247bbf);
 }
-[data-chat-group-part="response"] pre[data-dd-code] {
-  box-shadow: inset 3px 0 0 var(--dsw-alias-brand-primary, #247bbf);
-}
+
 .dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 380px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 13px; }
 .dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 13px; }
 .dd-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.2)); }

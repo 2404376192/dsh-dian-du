@@ -190,7 +190,7 @@ assert.equal(block.getAttribute('data-dd-marked'), undefined, 'second click clea
 listeners.get('pointerdown')({ clientX: 10, clientY: 10 })
 fireClick()
 assert.ok(block.getAttribute('data-dd-marked') !== undefined, 'marked again')
-document.querySelectorAll = () => [block]
+document.querySelectorAll = (selector) => (selector.includes('pre') ? [] : [block])
 listeners.get('pointerdown')({ clientX: 10, clientY: 10 })
 fireClick({ ctrlKey: true })
 assert.equal(block.getAttribute('data-dd-marked'), undefined, 'Ctrl+click clears the mark')

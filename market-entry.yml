@@ -1,0 +1,14 @@
+# 提交到 awesome-dsh-plugin 用的条目文件
+#
+# 用法：把本文件重命名为 `<你的GitHub用户名>__dsh-dian-du.yml`，
+# 放进 awesome-dsh-plugin 仓库的 data/plugins/ 目录，然后提 PR。
+# 注意：`url` 必须与你真实的仓库地址完全一致；`name` 是列表里显示的链接文字。
+
+url: https://github.com/2404376192/dsh-dian-du
+name: 2404376192/dsh-dian-du
+category: ui
+description:
+  en: 'Marks paragraphs or a single code line in an answer and asks the model about it in a docked right-hand column, leaving the conversation itself unmodified.'
+  zh: '点选回答中的段落或某一行代码，在右侧独立栏里向模型提问；左侧对话内容不被修改。'
+# 可选：市场卡片图标，必须是 GitHub 托管的位图（png/jpg/webp）
+# icon: https://raw.githubusercontent.com/2404376192/dsh-dian-du/main/icon-180.png

@@ -1,0 +1,54 @@
+{
+  "name": "dsh-dian-du",
+  "version": "0.1.0",
+  "description": "Reading pen for DeepSeek Harness: click a sentence or a code line in an answer, ask a question, and read the explanation in a docked right-hand column without changing the conversation.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "reading-pen",
+    "explain",
+    "tutor"
+  ],
+  "license": "MIT",
+  "author": "十一时一 <2404376192@qq.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/2404376192/dsh-dian-du.git"
+  },
+  "homepage": "https://github.com/2404376192/dsh-dian-du#readme",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.0-rc.1"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+    }
+  },
+  "scripts": {
+    "check": "node --check index.js && node --check client.js",
+    "test": "node test/host.test.mjs && node test/client.test.mjs"
+  }
+}

@@ -1,0 +1,6 @@
+- insert:
+    - id: dian-du
+      name: dsh-dian-du
+      config:
+        provider: deepseek-official
+        model: deepseek-flash

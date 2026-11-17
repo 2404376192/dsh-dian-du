@@ -1,6 +1,6 @@
 # dsh-dian-du · 点读笔 / Reading Pen
 
-A reading-pen plugin for **DeepSeek Harness (DSH)**. Click a sentence or a single code line in an answer, ask about it, and read the explanation in a docked right-hand column — the conversation itself is never rewritten.
+A reading-pen plugin for **DeepSeek Harness (DSH)**. Drag over any sentence in an answer, click 「在侧边提问」in the floating toolbar, and read the explanation in a docked right-hand column — the conversation itself is never rewritten.
 
 ![Reading Pen panel](assets/screenshot-1.png)
 
@@ -9,9 +9,8 @@ A reading-pen plugin for **DeepSeek Harness (DSH)**. Click a sentence or a singl
 ## Features
 
 - **Select text, get a toolbar** — drag over any sentence in an answer and a small floating toolbar appears right above it: 「在侧边提问」sends the snippet to the right column, 「复制」copies it.
-- **Pick a passage** — click a paragraph, heading, list item or quote to select it; inside a code block, click the exact line you mean.
-- **Two visual states** — blue for the current selection, amber for passages you have already asked about (a trace of "I once got stuck here").
-- **Docked right column** — selecting opens the「点读」tab in DSH's right Sidebar. The conversation narrows instead of being covered.
+- **Traces** — passages you have already asked about keep an amber marker, so an old "I once got stuck here" stays visible.
+- **Docked right column** — asking opens the「点读」tab in DSH's right Sidebar. The conversation narrows instead of being covered.
 - **Ask there** — type in the column's input, press Enter; the explanation appears in that column and the main transcript keeps its original answer.
 - **Clear quickly** — tap `Ctrl` once, or `Ctrl`+click anywhere; 「查过 N 处」 clears all traces.
 - **Same model as the chat** — the call follows the conversation's provider/model/reasoning effort, falling back to `high`.
@@ -41,8 +40,6 @@ Verify: open the right Sidebar; the「点读」tab is there, and its footer show
 2. Click 「在侧边提问」; the right column opens with that snippet under「已选内容」.
 3. Type your question under「我的提问」and press Enter.
 4. Read the explanation in the same column; the left conversation is untouched.
-
-Or skip the toolbar: click a single paragraph / code line to select the whole block.
 
 ## How it works
 
@@ -85,15 +82,14 @@ MIT
 
 ## 中文
 
-DeepSeek Harness（DSH）插件：在对话里**点一下** AI 回答中的某个句子或代码行，然后在**右侧独立栏**里提问，让模型专门解释这一处。左侧原始回答不改动、不新增消息。
+DeepSeek Harness（DSH）插件：在对话里**划选** AI 回答中的任意文字，点浮出的「在侧边提问」，然后在**右侧独立栏**里提问，让模型专门解释这一处。左侧原始回答不改动、不新增消息。
 
 ![点读笔面板](assets/screenshot-1.png)
 
 ### 功能
 
 - **划词即弹工具栏**：在回答里拖选任意一段文字，上方浮出小工具栏——「在侧边提问」把这段送进右栏，「复制」复制原文
-- **点选**：点段落 / 标题 / 列表 / 引用切换选中；代码块里点哪一行就选哪一行
-- **两种颜色**：蓝色是当前选中，琥珀色是**问过的痕迹**（这里曾经不会）
+- **问过的痕迹**：问过的段落保留琥珀色标记（这里曾经不会），随时可清
 - **右侧栏**：选中后自动展开「点读」标签，左侧对话被挤窄，不遮挡
 - **提问**：右栏底部输入诉求，回车发送，解释出现在右栏，左侧保持原样
 - **清空**：轻按一下 `Ctrl`，或 `Ctrl` + 点击任意位置；「查过 N 处」可清空全部痕迹
@@ -117,8 +113,6 @@ dsh plugin --profile web add github:2404376192/dsh-dian-du
 2. 点「在侧边提问」，右栏「点读」展开，这段文字进入「已选内容」
 3. 在「我的提问」输入框里说诉求，回车
 4. 解释出现在右栏，左侧对话不动
-
-也可以不用工具栏：直接点一下整段 / 某一代码行，选中整个块。
 
 ### 原理
 

@@ -18,13 +18,12 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v17';
+    const VERSION = 'v18';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
     const COMMAND = 'dian-du';
     const INNER_SELECTOR = 'p,h1,h2,h3,h4,h5,h6,li,blockquote';
-    const BLOCK_SELECTOR = '[data-chat-group-part="response"] :is(' + INNER_SELECTOR + ')';
 
     const store = {
       marks: loadMarks(),
@@ -142,92 +141,8 @@ window.__ModuleLoader__.load({
       window.localStorage.setItem(STORAGE_KEY + '.side', store.sideSessionId);
     }
 
-    function textOf(element) {
-      const text = (element.innerText || element.textContent || '').replace(/\s+/g, ' ').trim();
-      return text.length > 800 ? text.slice(0, 800) + '…' : text;
-    }
-
-    function blockIndex(element) {
-      const row = element.closest('[data-chat-group-part="response"]');
-      if (!row) return 0;
-      return [...row.querySelectorAll(INNER_SELECTOR)].indexOf(element) + 1;
-    }
-
-    function toggleMark(element) {
-      const row = element.closest('[data-chat-group-part="response"]');
-      if (!row) return;
-      const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
-      const text = textOf(element);
-      if (!text) return;
-      const id = nodeKey + '#' + blockIndex(element);
-      if (store.marks.some((m) => m.id === id)) {
-        element.removeAttribute('data-dd-marked');
-        update({ marks: store.marks.filter((m) => m.id !== id), debug: '取消 <' + element.tagName.toLowerCase() + '>' });
-      } else {
-        element.setAttribute('data-dd-marked', '');
-        update({
-          marks: store.marks.concat({ id, text, at: Date.now() }),
-          debug: '已选 <' + element.tagName.toLowerCase() + '>',
-        });
-        openPanel();
-      }
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) selection.removeAllRanges();
-    }
-
-    function codeHostOf(element) {
-      return element.closest('pre') || element.closest('code') || null;
-    }
-
-    function codeLineAt(host, x, y) {
-      const text = host.textContent || '';
-      const range = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
-      if (range && host.contains(range.startContainer)) {
-        const probe = document.createRange();
-        probe.selectNodeContents(host);
-        probe.setEnd(range.startContainer, range.startOffset);
-        const line = probe.toString().split('\n').length;
-        return { line, text: (text.split('\n')[line - 1] || '').trim() };
-      }
-      const style = window.getComputedStyle(host);
-      const lineHeight = parseFloat(style.lineHeight);
-      const top = host.getBoundingClientRect().top + parseFloat(style.paddingTop);
-      if (!Number.isFinite(lineHeight) || lineHeight <= 0) return { line: 0, text: '' };
-      const line = Math.max(1, Math.floor((y - top) / lineHeight) + 1);
-      return { line, text: (text.split('\n')[line - 1] || '').trim() };
-    }
-
     function preIndexIn(row, pre) {
       return [...row.querySelectorAll('pre')].indexOf(pre);
-    }
-
-    function toggleCodeLine(host, x, y) {
-      const block = host.closest('pre, code') || host;
-      const row = block.closest('[data-chat-group-part="response"]');
-      if (!row) return;
-      const pre = block.closest('pre') || block;
-      const found = codeLineAt(block, x, y);
-      if (!found.line || !found.text) return;
-      const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
-      const preIndex = Math.max(0, preIndexIn(row, pre));
-      const id = nodeKey + '#P' + preIndex + 'L' + found.line;
-      if (store.marks.some((m) => m.id === id)) {
-        update({ marks: store.marks.filter((m) => m.id !== id), debug: '取消代码第 ' + found.line + ' 行' });
-      } else {
-        update({
-          marks: store.marks.concat({
-            id,
-            label: '代码第 ' + found.line + ' 行',
-            text: found.text.length > 800 ? found.text.slice(0, 800) + '…' : found.text,
-            at: Date.now(),
-          }),
-          debug: '已选代码第 ' + found.line + ' 行',
-        });
-        openPanel();
-      }
-      paintCodeHighlights();
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) selection.removeAllRanges();
     }
 
     /** Paint exactly the selected lines (blue) and previously asked lines (amber). */
@@ -257,7 +172,7 @@ window.__ModuleLoader__.load({
         const all = [...new Set([...selected, ...asked])].sort((a, b) => a - b);
         for (const line of all) {
           const top = paddingTop + (line - 1) * lineHeight;
-          if (selected.has(line)) {
+          if (selected.has(line) && !asked.has(line)) {
             stops.push(
               'transparent ' + top + 'px',
               'rgba(36,123,191,.20) ' + top + 'px',
@@ -338,7 +253,9 @@ window.__ModuleLoader__.load({
       const picked = store.selection || readSelection();
       if (!picked) return;
       const mark = {
-        id: 'sel:' + Date.now() + ':' + picked.text.slice(0, 12),
+        // Anchor the mark to the block (or code line) the selection starts in, so
+        // the amber 「查过」 trace can still be painted in the answer afterwards.
+        id: picked.anchor || 'sel:' + Date.now() + ':' + picked.text.slice(0, 12),
         text: picked.text,
         label: '选中片段',
       };
@@ -360,6 +277,33 @@ window.__ModuleLoader__.load({
         if (tries++ < 12) window.setTimeout(focusInput, 120);
       };
       window.setTimeout(focusInput, 120);
+    }
+
+    /** Stable id of the block / code line a selection starts in. */
+    function anchorIdFor(range) {
+      try {
+        const start = range.startContainer;
+        const element = start && (start.nodeType === 1 ? start : start.parentElement);
+        if (!element) return '';
+        const row = element.closest('[data-chat-group-part="response"]');
+        if (!row) return '';
+        const nodeKey = row.closest('[data-chat-node-key]')?.dataset.chatNodeKey ?? 'answer';
+        const pre = element.closest('pre');
+        if (pre) {
+          const preIndex = Math.max(0, preIndexIn(row, pre));
+          const probe = document.createRange();
+          probe.selectNodeContents(pre);
+          probe.setEnd(start, range.startOffset);
+          const line = probe.toString().split('\n').length;
+          return nodeKey + '#P' + preIndex + 'L' + line;
+        }
+        const block = element.closest(INNER_SELECTOR);
+        if (!block) return '';
+        const index = [...row.querySelectorAll(INNER_SELECTOR)].indexOf(block);
+        return index < 0 ? '' : nodeKey + '#' + (index + 1);
+      } catch {
+        return '';
+      }
     }
 
     function copySelection() {
@@ -391,14 +335,18 @@ window.__ModuleLoader__.load({
       const element = anchor && (anchor.nodeType === 1 ? anchor : anchor.parentElement);
       if (!element || !element.closest('[data-chat-group-part="response"]')) return null;
       let rect = null;
+      let anchorId = '';
       try {
-        rect = native.getRangeAt(0).getBoundingClientRect();
+        const range = native.getRangeAt(0);
+        rect = range.getBoundingClientRect();
+        anchorId = anchorIdFor(range);
       } catch {
         rect = null;
       }
       if (!rect || (rect.width === 0 && rect.height === 0)) return null;
       return {
         text: text.slice(0, 4000),
+        anchor: anchorId,
         x: Math.min(Math.max(rect.left + rect.width / 2, 80), window.innerWidth - 80),
         y: Math.max(rect.top, 56),
       };
@@ -425,7 +373,7 @@ window.__ModuleLoader__.load({
         return;
       }
       if (store.marks.length === 0) {
-        update({ error: '先在左边点选一段内容' });
+        update({ error: '先在左边划选一段文字，点「在侧边提问」' });
         return;
       }
       const question = store.question.trim();
@@ -478,23 +426,23 @@ window.__ModuleLoader__.load({
   border-radius: 6px;
   transition: background .12s ease, box-shadow .12s ease;
 }
-[data-chat-group-part="response"] :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, pre):hover {
-  background: color-mix(in srgb, var(--dsw-alias-label-tertiary, #9aa0a6) 8%, transparent);
-}
 [data-chat-group-part="response"] [data-dd-marked] {
   background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 14%, transparent);
   box-shadow: inset 3px 0 0 var(--dsw-alias-brand-primary, #247bbf);
 }
-[data-chat-group-part="response"] [data-dd-asked]:not([data-dd-marked]) {
+/* Once a passage has been asked about, the amber trace wins: the block keeps
+   the 「这里问过」 marker for as long as the mark stays in the panel. */
+[data-chat-group-part="response"] [data-dd-asked] {
+  background: rgba(209,154,58,.12);
   box-shadow: inset 3px 0 0 rgba(209,154,58,.85);
 }
 
 .dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 400px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
-.dd-toolbar { position: fixed; transform: translate(-50%, calc(-100% - 8px)); display: flex; align-items: stretch; padding: 2px; border-radius: 9px; background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.32)); box-shadow: 0 6px 22px rgba(0,0,0,.32); z-index: 70; color: var(--dsw-alias-label-primary, inherit); font-size: 12px; line-height: 1; }
-.dd-tb-btn { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; padding: 7px 11px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
-.dd-tb-btn:hover { background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 16%, transparent); }
-.dd-tb-btn + .dd-tb-btn { box-shadow: inset 1px 0 0 var(--dsw-alias-border-secondary, rgba(128,128,128,.28)); border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.dd-tb-x { color: var(--dsw-alias-label-tertiary, #8a8f98); padding: 7px 8px; }
+.dd-toolbar { position: fixed; transform: translate(-50%, calc(-100% - 8px)); display: flex; align-items: stretch; padding: 2px; border-radius: 9px; background: #2b2d33; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 6px 22px rgba(0,0,0,.45); z-index: 70; color: #f2f3f5; font-size: 12px; line-height: 1; }
+.dd-tb-btn { border: 0; background: transparent; color: #f2f3f5; font: inherit; font-size: 12px; padding: 7px 11px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.dd-tb-btn:hover { background: rgba(255,255,255,.12); }
+.dd-tb-btn + .dd-tb-btn { box-shadow: inset 1px 0 0 rgba(255,255,255,.14); border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.dd-tb-x { color: #b9bec7; padding: 7px 8px; }
 .dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
 .dd-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); }
 .dd-title { font-weight: 600; font-size: 15px; }
@@ -572,7 +520,7 @@ window.__ModuleLoader__.load({
           { className: 'dd-scroll' },
           h('div', { className: 'dd-section' }, '已选内容'),
           store.marks.length === 0
-            ? h('div', { className: 'dd-hint' }, '在左边点一下想弄懂的句子或代码行。')
+            ? h('div', { className: 'dd-hint' }, '在左边拖选不懂的文字，点浮出的「在侧边提问」。')
             : store.marks.map((mark) =>
                 h(
                   'div',
@@ -686,39 +634,15 @@ window.__ModuleLoader__.load({
         }
 
         try {
-          let down = null;
-          const onDown = (event) => {
-            down = { x: event.clientX, y: event.clientY };
-          };
+          // Clicking a block no longer selects it: selection now comes from the
+          // floating toolbar. Ctrl+click stays as the quick "clear everything".
           const onClick = (event) => {
             if (!(event.target instanceof Element)) return;
+            if (!event.ctrlKey) return;
             if (event.target.closest('a, button, summary, input, textarea, select, [contenteditable="true"]')) return;
-            const dragged = down && (Math.abs(event.clientX - down.x) > 5 || Math.abs(event.clientY - down.y) > 5);
-            down = null;
-            if (dragged) return;
-            if (event.ctrlKey) {
-              event.preventDefault();
-              event.stopPropagation();
-              clearMarks();
-              return;
-            }
-            const row = event.target.closest('[data-chat-group-part="response"]');
-            if (!row) return;
-            const code = codeHostOf(event.target);
-            if (code) {
-              event.preventDefault();
-              event.stopPropagation();
-              toggleCodeLine(code, event.clientX, event.clientY);
-              return;
-            }
-            const block = event.target.closest(BLOCK_SELECTOR);
-            if (!block) {
-              update({ debug: '点了 <' + event.target.tagName.toLowerCase() + '>，没匹配到段落/代码块' });
-              return;
-            }
             event.preventDefault();
             event.stopPropagation();
-            toggleMark(block);
+            clearMarks();
           };
           let ctrlDownAt = 0;
           let ctrlUsed = false;
@@ -736,12 +660,10 @@ window.__ModuleLoader__.load({
             ctrlDownAt = 0;
             if (tapped && store.marks.length > 0) clearMarks();
           };
-          document.addEventListener('pointerdown', onDown, true);
           document.addEventListener('click', onClick, true);
           document.addEventListener('keydown', onKeyDown, true);
           document.addEventListener('keyup', onKeyUp, true);
           ctx.effect(() => () => {
-            document.removeEventListener('pointerdown', onDown, true);
             document.removeEventListener('click', onClick, true);
             document.removeEventListener('keydown', onKeyDown, true);
             document.removeEventListener('keyup', onKeyUp, true);

@@ -8,6 +8,7 @@ A reading-pen plugin for **DeepSeek Harness (DSH)**. Click a sentence or a singl
 
 ## Features
 
+- **Select text, get a toolbar** — drag over any sentence in an answer and a small floating toolbar appears right above it: 「在侧边提问」sends the snippet to the right column, 「复制」copies it.
 - **Pick a passage** — click a paragraph, heading, list item or quote to select it; inside a code block, click the exact line you mean.
 - **Two visual states** — blue for the current selection, amber for passages you have already asked about (a trace of "I once got stuck here").
 - **Docked right column** — selecting opens the「点读」tab in DSH's right Sidebar. The conversation narrows instead of being covered.
@@ -36,16 +37,18 @@ Verify: open the right Sidebar; the「点读」tab is there, and its footer show
 
 ## Usage
 
-1. Click the sentence (or the code line) you do not understand.
-2. The right column opens with that passage under「已选内容」.
+1. Drag over the words you do not understand — a floating toolbar appears above them.
+2. Click 「在侧边提问」; the right column opens with that snippet under「已选内容」.
 3. Type your question under「我的提问」and press Enter.
 4. Read the explanation in the same column; the left conversation is untouched.
+
+Or skip the toolbar: click a single paragraph / code line to select the whole block.
 
 ## How it works
 
 | Part | Role |
 |---|---|
-| `client.js` | Selection, highlighting and the right-column panel; registers into `sidebar.right.pane.tab`, with a `shell.overlay` fallback |
+| `client.js` | Selection, the floating toolbar, highlighting and the right-column panel; registers into `sidebar.right.pane.tab`, with a `shell.overlay` fallback |
 | `index.js` | Host half: registers the `/dian-du` command and calls `ctx.llm.stream` |
 | Flow | panel → `ctx.remote.session.create` (a dedicated side session) → `ctx.remote.commands.execute('/dian-du …')` → text rendered in the column |
 | `cordis.patch.yml` | Bundle patch; `provider`, `model`, `reasoningEffort` can be overridden here |
@@ -88,6 +91,7 @@ DeepSeek Harness（DSH）插件：在对话里**点一下** AI 回答中的某�
 
 ### 功能
 
+- **划词即弹工具栏**：在回答里拖选任意一段文字，上方浮出小工具栏——「在侧边提问」把这段送进右栏，「复制」复制原文
 - **点选**：点段落 / 标题 / 列表 / 引用切换选中；代码块里点哪一行就选哪一行
 - **两种颜色**：蓝色是当前选中，琥珀色是**问过的痕迹**（这里曾经不会）
 - **右侧栏**：选中后自动展开「点读」标签，左侧对话被挤窄，不遮挡
@@ -109,16 +113,18 @@ dsh plugin --profile web add github:2404376192/dsh-dian-du
 
 ### 使用
 
-1. 点一下想弄懂的句子（或代码块里的一行）
-2. 右栏「点读」自动展开，选中的内容显示在「已选内容」
+1. 在回答里拖选不懂的那句话，上方浮出工具栏
+2. 点「在侧边提问」，右栏「点读」展开，这段文字进入「已选内容」
 3. 在「我的提问」输入框里说诉求，回车
 4. 解释出现在右栏，左侧对话不动
+
+也可以不用工具栏：直接点一下整段 / 某一代码行，选中整个块。
 
 ### 原理
 
 | 部分 | 说明 |
 |---|---|
-| `client.js` | 点选、高亮、右栏面板；注册到 `sidebar.right.pane.tab`，另有 `shell.overlay` 兜底 |
+| `client.js` | 划词工具栏、点选、高亮、右栏面板；注册到 `sidebar.right.pane.tab`，另有 `shell.overlay` 兜底 |
 | `index.js` | Host 半边：注册 `/dian-du` 命令，用 `ctx.llm.stream` 调模型 |
 | 调用链 | 面板 → `ctx.remote.session.create`（独立「点读」会话）→ `ctx.remote.commands.execute('/dian-du …')` → 文本回显在右栏 |
 | `cordis.patch.yml` | bundle 补丁；`provider` / `model` / `reasoningEffort` 可在这里改 |

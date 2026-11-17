@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v16';
+    const VERSION = 'v17';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -39,6 +39,8 @@ window.__ModuleLoader__.load({
       sidebarAvailable: false,
       thread: [],
       sideSessionId: loadSideSession(),
+      /** { text, x, y } — a live text selection inside an answer, shown as a floating toolbar. */
+      selection: null,
     };
 
     function withTimeout(promise, ms, label) {
@@ -326,6 +328,82 @@ window.__ModuleLoader__.load({
       return document.querySelector('[data-sidebar-right-session]')?.dataset.sidebarRightSession ?? '';
     }
 
+    /** Drop the floating selection toolbar (the native selection is left alone). */
+    function hideSelection() {
+      if (store.selection) update({ selection: null });
+    }
+
+    /** Turn the current text selection into a mark and open the panel on it. */
+    function selectionToPanel() {
+      const picked = store.selection || readSelection();
+      if (!picked) return;
+      const mark = {
+        id: 'sel:' + Date.now() + ':' + picked.text.slice(0, 12),
+        text: picked.text,
+        label: '选中片段',
+      };
+      update({ marks: store.marks.concat(mark), selection: null, error: '', status: '' });
+      const native = window.getSelection();
+      if (native) native.removeAllRanges();
+      openPanel();
+      let tries = 0;
+      const focusInput = () => {
+        const input = document.getElementById('dd-input');
+        if (input) {
+          try {
+            input.focus();
+          } catch {
+            /* focus is best effort */
+          }
+          return;
+        }
+        if (tries++ < 12) window.setTimeout(focusInput, 120);
+      };
+      window.setTimeout(focusInput, 120);
+    }
+
+    function copySelection() {
+      const picked = store.selection;
+      if (!picked) return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(picked.text);
+        else {
+          const area = document.createElement('textarea');
+          area.value = picked.text;
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          area.remove();
+        }
+      } catch {
+        /* clipboard is best effort */
+      }
+      update({ selection: null, status: '已复制选中的内容' });
+    }
+
+    /** Read the current DOM selection, if it lives inside an answer. */
+    function readSelection() {
+      const native = window.getSelection();
+      if (!native || native.isCollapsed || native.rangeCount === 0) return null;
+      const text = String(native.toString() || '').trim();
+      if (!text) return null;
+      const anchor = native.anchorNode;
+      const element = anchor && (anchor.nodeType === 1 ? anchor : anchor.parentElement);
+      if (!element || !element.closest('[data-chat-group-part="response"]')) return null;
+      let rect = null;
+      try {
+        rect = native.getRangeAt(0).getBoundingClientRect();
+      } catch {
+        rect = null;
+      }
+      if (!rect || (rect.width === 0 && rect.height === 0)) return null;
+      return {
+        text: text.slice(0, 4000),
+        x: Math.min(Math.max(rect.left + rect.width / 2, 80), window.innerWidth - 80),
+        y: Math.max(rect.top, 56),
+      };
+    }
+
     async function ensureSideSession() {
       if (store.sideSessionId) return store.sideSessionId;
       const remote = remoteCtx && remoteCtx.remote;
@@ -412,6 +490,11 @@ window.__ModuleLoader__.load({
 }
 
 .dd-overlay { position: fixed; right: 16px; top: 74px; bottom: 118px; width: 400px; display: flex; flex-direction: column; z-index: 60; border-radius: 12px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
+.dd-toolbar { position: fixed; transform: translate(-50%, calc(-100% - 8px)); display: flex; align-items: stretch; padding: 2px; border-radius: 9px; background: var(--dsw-alias-bg-elevated, #1b1c1f); background: var(--dsw-alias-background-elevated, #1b1c1f); border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.32)); box-shadow: 0 6px 22px rgba(0,0,0,.32); z-index: 70; color: var(--dsw-alias-label-primary, inherit); font-size: 12px; line-height: 1; }
+.dd-tb-btn { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; padding: 7px 11px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.dd-tb-btn:hover { background: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 16%, transparent); }
+.dd-tb-btn + .dd-tb-btn { box-shadow: inset 1px 0 0 var(--dsw-alias-border-secondary, rgba(128,128,128,.28)); border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.dd-tb-x { color: var(--dsw-alias-label-tertiary, #8a8f98); padding: 7px 8px; }
 .dd-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, inherit); font-size: 14px; }
 .dd-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.22)); }
 .dd-title { font-weight: 600; font-size: 15px; }
@@ -527,6 +610,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dd-compose' },
           h('textarea', {
+            id: 'dd-input',
             className: 'dd-area',
             placeholder: '说出你的诉求，回车发送（Shift+回车换行）',
             value: store.question,
@@ -564,6 +648,25 @@ window.__ModuleLoader__.load({
             h('span', { className: 'dd-hint' }, VERSION),
           ),
         ),
+      );
+    }
+
+    /** Codex-style floating toolbar: appears above whatever text is selected. */
+    function SelectionToolbar() {
+      const [, setTick] = React.useState(0);
+      React.useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
+      const picked = store.selection;
+      if (!picked) return null;
+      return h(
+        'div',
+        {
+          className: 'dd-toolbar',
+          style: { left: picked.x + 'px', top: picked.y + 'px' },
+          onMouseDown: (event) => event.preventDefault(),
+        },
+        h('button', { className: 'dd-tb-btn', title: '把这段放进点读面板向 AI 提问', onClick: selectionToPanel }, '在侧边提问'),
+        h('button', { className: 'dd-tb-btn', title: '复制这段文字', onClick: copySelection }, '复制'),
+        h('button', { className: 'dd-tb-btn dd-tb-x', title: '关闭', onClick: hideSelection }, '×'),
       );
     }
 
@@ -728,6 +831,54 @@ window.__ModuleLoader__.load({
           );
         } catch (error) {
           console.error('[dian-du] overlay', error);
+        }
+
+        try {
+          ctx.effect(() =>
+            ctx.slots.inject('shell.overlay', () =>
+              ctx.slots.register({ name: 'shell.overlay', id: 'dian-du-toolbar' }, () => h(SelectionToolbar, null)),
+            ),
+          );
+        } catch (error) {
+          console.error('[dian-du] toolbar overlay', error);
+        }
+
+        try {
+          // Select text in an answer → a small toolbar floats above it, exactly
+          // like the Codex reading UI. Clicking the paragraph itself still marks
+          // the whole block, so both gestures keep working.
+          let settle = 0;
+          const onMouseUp = () => {
+            window.clearTimeout(settle);
+            settle = window.setTimeout(() => {
+              const picked = readSelection();
+              if (picked) update({ selection: picked });
+              else hideSelection();
+            }, 0);
+          };
+          const onSelectionChange = () => {
+            const native = window.getSelection();
+            if ((!native || native.isCollapsed) && store.selection) hideSelection();
+          };
+          const onScroll = () => {
+            if (store.selection) hideSelection();
+          };
+          const onEscape = (event) => {
+            if (event.key === 'Escape') hideSelection();
+          };
+          document.addEventListener('mouseup', onMouseUp, true);
+          document.addEventListener('selectionchange', onSelectionChange);
+          document.addEventListener('scroll', onScroll, true);
+          document.addEventListener('keydown', onEscape, true);
+          ctx.effect(() => () => {
+            window.clearTimeout(settle);
+            document.removeEventListener('mouseup', onMouseUp, true);
+            document.removeEventListener('selectionchange', onSelectionChange);
+            document.removeEventListener('scroll', onScroll, true);
+            document.removeEventListener('keydown', onEscape, true);
+          });
+        } catch (error) {
+          console.error('[dian-du] selection hooks', error);
         }
       },
     };

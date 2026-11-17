@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v19';
+    const VERSION = 'v20';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -40,6 +40,8 @@ window.__ModuleLoader__.load({
       sideSessionId: loadSideSession(),
       /** { text, x, y } — a live text selection inside an answer, shown as a floating toolbar. */
       selection: null,
+      /** Send the tail of the left-hand conversation along, so the answer fits the thread. */
+      useContext: true,
     };
 
     function withTimeout(promise, ms, label) {
@@ -352,6 +354,29 @@ window.__ModuleLoader__.load({
       };
     }
 
+    /**
+     * The last few messages of the conversation on the left, as plain text.
+     * The panel runs in its own Session, so without this the model cannot see
+     * what the user has already been discussing.
+     */
+    function conversationContext(maxItems, maxCharsEach) {
+      var limitItems = maxItems || 8;
+      var limitChars = maxCharsEach || 1200;
+      var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-chat-group-part]'));
+      if (!nodes.length) return [];
+      var out = [];
+      var picked = nodes.slice(-limitItems);
+      for (var i = 0; i < picked.length; i += 1) {
+        var node = picked[i];
+        var role = node.getAttribute('data-chat-group-part');
+        if (role !== 'user' && role !== 'response') continue;
+        var text = String(node.innerText || '').trim();
+        if (!text) continue;
+        out.push({ role: role === 'user' ? 'user' : 'assistant', text: text.slice(0, limitChars) });
+      }
+      return out;
+    }
+
     async function ensureSideSession() {
       if (store.sideSessionId) return store.sideSessionId;
       const remote = remoteCtx && remoteCtx.remote;
@@ -378,7 +403,8 @@ window.__ModuleLoader__.load({
       }
       const question = store.question.trim();
       update({ busy: true, error: '', status: '准备发送…', question: '' });
-      const payload = { items: store.marks.map((m) => ({ text: m.text })), question };
+      const context = store.useContext ? conversationContext(8, 1200) : [];
+      const payload = { items: store.marks.map((m) => ({ text: m.text })), question, context };
       const line = '/' + COMMAND + ' ' + JSON.stringify(payload);
 
       let sid = '';
@@ -479,6 +505,7 @@ window.__ModuleLoader__.load({
 .dd-row { display: flex; gap: 8px; align-items: center; }
 .dd-btn { border-radius: 8px; padding: 6px 14px; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.25)); background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
 .dd-btn.primary { background: var(--dsw-alias-brand-primary, #247bbf); border-color: transparent; color: #fff; }
+.dd-btn.on { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary, #247bbf) 55%, transparent); color: var(--dsw-alias-brand-primary, #247bbf); }
 .dd-btn:disabled { opacity: .5; cursor: default; }
 .dd-debug { font-size: 10px; color: var(--dsw-alias-label-tertiary, #8a8f98); font-family: ui-monospace, Consolas, monospace; }
 `;
@@ -615,6 +642,15 @@ window.__ModuleLoader__.load({
                   '停止',
                 )
               : null,
+            h(
+              'button',
+              {
+                className: store.useContext ? 'dd-btn on' : 'dd-btn',
+                title: '把左侧对话最近的内容一起发给模型，回答才能接上你正在聊的东西',
+                onClick: () => update({ useContext: !store.useContext }),
+              },
+              store.useContext ? '参考对话 ✓' : '参考对话',
+            ),
             h(
               'button',
               {

@@ -12,6 +12,7 @@ A reading-pen plugin for **DeepSeek Harness (DSH)**. Drag over any sentence in a
 - **Traces** — passages you have already asked about keep an amber marker, so an old "I once got stuck here" stays visible.
 - **Docked right column** — asking opens the「点读」tab in DSH's right Sidebar. The conversation narrows instead of being covered.
 - **Ask there** — type in the column's input, press Enter; the explanation appears in that column and the main transcript keeps its original answer.
+- **Shares the conversation** — the panel sends the last few messages of the chat you are reading along with the snippet, so answers pick up terms you already discussed instead of starting from zero. Toggle it off with 「参考对话」 in the panel footer.
 - **Clear quickly** — tap `Ctrl` once, or `Ctrl`+click anywhere; 「查过 N 处」 clears all traces.
 - **Same model as the chat** — the call follows the conversation's provider/model/reasoning effort, falling back to `high`.
 
@@ -93,6 +94,7 @@ DeepSeek Harness（DSH）插件：在对话里**划选** AI 回答中的任意�
 - **右栏是聊天**：问题和解释都按气泡排——你的问题靠右（实色、加粗），解释靠左，每轮之间虚线分隔
 - **右侧栏**：选中后自动展开「点读」标签，左侧对话被挤窄，不遮挡
 - **提问**：右栏底部输入，回车发送。发出后输入框**立即清空**，思考时显示「正在思考…」气泡，可以接着打下一句
+- **共享上下文**：提问时会把左边对话最后 8 段一起带给模型，回答能接上你正在聊的内容，不重复已经讲过的概念；面板底部「参考对话」开关可随时关掉
 - **清空**：轻按一下 `Ctrl`，或 `Ctrl` + 点击任意位置；「查过 N 处」可清空全部痕迹
 - **跟随当前模型**：provider / model / reasoning effort 跟随对话，兜底 `high`
 

@@ -1,6 +1,6 @@
 ﻿{
   "name": "dsh-dian-du",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Reading pen for DeepSeek Harness: click a sentence or a code line in an answer, ask a question, and read the explanation in a docked right-hand column without changing the conversation.",
   "keywords": [
     "dsh",

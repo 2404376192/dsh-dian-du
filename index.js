@@ -6,14 +6,21 @@
  * never adds a message to the conversation you are reading.
  *
  * The command input is a JSON object carried in the command's raw input:
- *   { "items": [{ "text": "..." }], "question": "..." }
+ *   { "items": [{ "text": "..." }], "question": "...", "context": [{ "role": "user"|"assistant", "text": "..." }] }
+ *
+ * `context` is the tail of the conversation the reader is looking at. The panel
+ * runs in its own Session, so this excerpt is the only way the answer can pick
+ * up what the user has already discussed.
  */
 
 export const inject = ['commands', 'llm'];
 
+const CONTEXT_BUDGET = 6000;
+
 const INSTRUCTIONS = [
   '你是一个耐心、擅长打比方的一对一辅导老师。',
   '用户会给你几段他看不懂的原文片段，以及他的问题。',
+  '如果有「对话上下文」，它来自用户正在读的那轮对话：回答要和它的语气、用词、已经讲过的概念保持一致，不要重复已经解释过的内容，也不要假装没看见。',
   '请只针对片段里真正难懂的地方解释：先用一句话说人话，再拆开讲原因，必要时给一个很小的例子。',
   '不要整段复述原文，不要用「首先/其次/最后」这类空话，不要输出 Markdown 标题。',
   '如果片段是代码或公式，逐部分说明它在做什么。',
@@ -60,12 +67,27 @@ export function apply(ctx, config) {
           .map((item) => textOf(item && item.text).trim())
           .filter((text) => text.length > 0);
 
+        // Newest messages matter most: keep the tail of the excerpt, not its head.
+        const rawContext = Array.isArray(payload && payload.context) ? payload.context : [];
+        const contextLines = [];
+        let remaining = CONTEXT_BUDGET;
+        for (let i = rawContext.length - 1; i >= 0 && remaining > 0; i -= 1) {
+          const entry = rawContext[i] || {};
+          const text = textOf(entry.text).trim();
+          if (!text) continue;
+          const clipped = text.length > remaining ? text.slice(text.length - remaining) : text;
+          remaining -= clipped.length;
+          contextLines.unshift((entry.role === 'assistant' ? '你：' : '用户：') + clipped);
+        }
+
         if (marked.length === 0 && question.length === 0) {
           return { kind: 'error', text: '没有收到要解释的内容' };
         }
 
         const userText = [
           INSTRUCTIONS,
+          '',
+          contextLines.length ? '对话上下文（用户正在读的对话，节选）：\n' + contextLines.join('\n\n') : '',
           '',
           marked.length
             ? '我标记的原文：\n' + marked.map((text, i) => `${i + 1}. ${text}`).join('\n')

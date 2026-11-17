@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const VERSION = 'v18';
+    const VERSION = 'v19';
     const TAB_ID = 'dsh-dian-du';
     const KIND = 'dian-du';
     const STORAGE_KEY = 'dian-du.v1';
@@ -377,7 +377,7 @@ window.__ModuleLoader__.load({
         return;
       }
       const question = store.question.trim();
-      update({ busy: true, error: '', status: '准备发送…' });
+      update({ busy: true, error: '', status: '准备发送…', question: '' });
       const payload = { items: store.marks.map((m) => ({ text: m.text })), question };
       const line = '/' + COMMAND + ' ' + JSON.stringify(payload);
 
@@ -387,7 +387,7 @@ window.__ModuleLoader__.load({
       } catch (error) {
         sid = currentSessionId();
         if (!sid) {
-          update({ busy: false, status: '', error: (error && error.message) || String(error) });
+          update({ busy: false, status: '', error: (error && error.message) || String(error), question });
           return;
         }
       }
@@ -412,7 +412,7 @@ window.__ModuleLoader__.load({
         });
         rememberAsked();
       } catch (error) {
-        update({ busy: false, status: '', error: (error && error.message) || String(error) });
+        update({ busy: false, status: '', error: (error && error.message) || String(error), question: question || store.question });
       }
     }
 
@@ -450,7 +450,19 @@ window.__ModuleLoader__.load({
 .dd-asked-clear { margin-left: auto; border: 0; background: transparent; color: rgba(209,154,58,.95); cursor: pointer; font: inherit; font-size: 11px; padding: 0 4px; }
 .dd-asked-tag { font-size: 10px; line-height: 16px; color: rgba(209,154,58,.95); border: 1px solid rgba(209,154,58,.45); border-radius: 999px; padding: 0 5px; white-space: nowrap; }
 .dd-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary, #8a8f98); cursor: pointer; font-size: 16px; padding: 0 4px; }
-.dd-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.dd-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.dd-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dd-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.3)); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12px; line-height: 18px; background: color-mix(in srgb, var(--dsw-alias-label-tertiary, #9aa0a6) 6%, transparent); }
+.dd-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; }
+.dd-thread { display: flex; flex-direction: column; gap: 16px; }
+.dd-turn { display: flex; flex-direction: column; gap: 8px; }
+.dd-turn + .dd-turn { border-top: 1px dashed var(--dsw-alias-border-secondary, rgba(128,128,128,.24)); padding-top: 16px; }
+.dd-bubble { max-width: 88%; border-radius: 14px; padding: 9px 12px; font-size: 14px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dd-bubble.user { align-self: flex-end; border-bottom-right-radius: 4px; background: var(--dsw-alias-brand-primary, #247bbf); color: #fff; font-weight: 600; }
+.dd-bubble.ai { align-self: flex-start; border-bottom-left-radius: 4px; background: color-mix(in srgb, var(--dsw-alias-label-tertiary, #9aa0a6) 12%, transparent); }
+.dd-bubble.typing { color: var(--dsw-alias-label-tertiary, #8a8f98); font-size: 13px; }
+.dd-bubble.err { align-self: stretch; max-width: 100%; background: color-mix(in srgb, var(--dsw-alias-danger, #e5484d) 14%, transparent); color: var(--dsw-alias-danger, #e5484d); font-size: 13px; }
+.dd-empty { color: var(--dsw-alias-label-tertiary, #8a8f98); font-size: 13px; line-height: 1.8; }
 .dd-section { margin-top: 2px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary, #8a8f98); text-transform: none; }
 .dd-mark { border: 1px solid var(--dsw-alias-border-secondary, rgba(128,128,128,.26)); border-radius: 8px; padding: 8px 10px; display: flex; gap: 8px; align-items: flex-start; background: color-mix(in srgb, var(--dsw-alias-label-tertiary, #9aa0a6) 5%, transparent); }
 .dd-label { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8a8f98); white-space: nowrap; padding-top: 3px; }
@@ -476,6 +488,11 @@ window.__ModuleLoader__.load({
       React.useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
       const [ctxRef] = React.useState(() => Panel.ctx);
       const inline = variant === 'sidebar';
+      const scrollRef = React.useRef(null);
+      React.useEffect(() => {
+        const node = scrollRef.current;
+        if (node) node.scrollTop = node.scrollHeight;
+      }, [store.thread.length, store.busy, store.error, store.marks.length]);
 
       React.useEffect(() => {
         if (inline || !store.open) return undefined;
@@ -517,41 +534,55 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'dd-scroll' },
-          h('div', { className: 'dd-section' }, '已选内容'),
-          store.marks.length === 0
-            ? h('div', { className: 'dd-hint' }, '在左边拖选不懂的文字，点浮出的「在侧边提问」。')
-            : store.marks.map((mark) =>
-                h(
-                  'div',
-                  { className: 'dd-mark', key: mark.id },
-                  mark.label ? h('span', { className: 'dd-label' }, mark.label) : null,
-                  h('span', { className: 'dd-text' }, mark.text),
-                  store.asked.some((entry) => entry.id === mark.id)
-                    ? h('span', { className: 'dd-asked-tag' }, '查过')
-                    : null,
+          { className: 'dd-scroll', ref: scrollRef },
+          store.marks.length
+            ? h(
+                'div',
+                { className: 'dd-chips' },
+                store.marks.map((mark) =>
                   h(
-                    'button',
-                    { className: 'dd-x', onClick: () => update({ marks: store.marks.filter((m) => m.id !== mark.id) }) },
-                    '×',
+                    'span',
+                    { className: 'dd-chip', key: mark.id, title: mark.text },
+                    h('span', { className: 'dd-chip-text' }, mark.text),
+                    store.asked.some((entry) => entry.id === mark.id)
+                      ? h('span', { className: 'dd-asked-tag' }, '查过')
+                      : null,
+                    h(
+                      'button',
+                      {
+                        className: 'dd-x',
+                        title: '移除这段',
+                        onClick: () => update({ marks: store.marks.filter((m) => m.id !== mark.id) }),
+                      },
+                      '×',
+                    ),
                   ),
                 ),
-              ),
-          h('div', { className: 'dd-section' }, '我的提问'),
-          store.thread.length === 0
-            ? h('div', { className: 'dd-hint' }, '选好内容后，在下面的框里说你的诉求，回车发送。')
+              )
             : null,
-          store.thread.map((entry) =>
-            h(
-              'div',
-              { className: 'dd-qa', key: entry.at },
-              h('div', { className: 'dd-q' }, entry.q),
-              h('div', { className: 'dd-a' }, entry.a),
+          h(
+            'div',
+            { className: 'dd-thread' },
+            store.thread.length === 0 && !store.busy
+              ? h('div', { className: 'dd-empty' }, '在左边划选一段不懂的内容，点「在侧边提问」，然后在这里说你想知道什么。')
+              : null,
+            store.thread.map((entry) =>
+              h(
+                'div',
+                { className: 'dd-turn', key: entry.at },
+                h('div', { className: 'dd-bubble user' }, entry.q),
+                h('div', { className: 'dd-bubble ai' }, entry.a),
+              ),
             ),
+            store.busy
+              ? h(
+                  'div',
+                  { className: 'dd-turn' },
+                  h('div', { className: 'dd-bubble ai typing' }, '正在思考…'),
+                )
+              : null,
           ),
-          store.busy ? h('div', { className: 'dd-loading' }, store.status || '正在解释…') : null,
-          !store.busy && store.status ? h('div', { className: 'dd-hint' }, store.status) : null,
-          store.error ? h('div', { className: 'dd-error' }, store.error) : null,
+          store.error ? h('div', { className: 'dd-bubble err' }, store.error) : null,
           store.debug ? h('div', { className: 'dd-debug' }, store.debug) : null,
         ),
         h(
@@ -560,7 +591,7 @@ window.__ModuleLoader__.load({
           h('textarea', {
             id: 'dd-input',
             className: 'dd-area',
-            placeholder: '说出你的诉求，回车发送（Shift+回车换行）',
+            placeholder: '在这里提问…（回车发送，Shift+回车换行）',
             value: store.question,
             onChange: (e) => update({ question: e.target.value }),
             onKeyDown: (e) => {
